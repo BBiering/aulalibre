@@ -52,7 +52,7 @@ just build-release
 #   {"mcpServers": {"aula": {"command": "<repo>/aula/target/release/aula-mcp"}}}
 ```
 
-Authentication is shared with the CLI -- run `just run auth login` once and the server picks up the same token store. Set `AULA_ENV` to target a non-production environment.
+Authentication is shared with the CLI -- run `just run auth login` once and the server picks up the same token store. Set `AULA_ENV` to target a non-production environment. When the login eventually expires, see [Refreshing the login](#refreshing-the-login).
 
 Tools are read-oriented (`aula_whoami`, `aula_messages`, `aula_thread`, `aula_calendar`, `aula_week_plan`, `aula_presence`, `aula_posts`, `aula_notifications`, `aula_gallery`, `aula_documents`, `aula_search`) plus two writes: `aula_send_message` and `aula_reply`. Responses are compact projections of Aula's DTOs -- plain text instead of HTML, only the fields a question can be answered from.
 
@@ -89,7 +89,37 @@ OIDC Authorization Code + PKCE flow through `login.aula.dk`.
 - **Manual** (`--manual`, recommended): opens browser, you paste the redirect URL back into the terminal.
 - **Automatic** (default): opens browser and captures the auth code via a local callback server. May not work in all environments.
 
-Tokens stored at `~/.local/share/aula/tokens.json` with `0600` permissions.
+Tokens are stored in the platform data directory with `0600` permissions:
+`~/Library/Application Support/aula/tokens.json` on macOS, `$XDG_DATA_HOME/aula/tokens.json`
+(or `~/.local/share/aula/`) on Linux. `AULA_DATA_DIR` overrides the location.
+
+### Refreshing the login
+
+The access token lasts about an hour and refreshes itself — normal use needs no
+intervention. What eventually expires is the **refresh token**, and then every call fails:
+the CLI returns an API error, and the hosted server says `not logged in`.
+
+**CLI only:**
+
+```bash
+just run auth refresh     # refresh in place, keeps the current session
+just run auth login       # full re-login with MitID — needed once the refresh token dies
+```
+
+**Hosted MCP server** (the one in Claude): it reads its tokens from Supabase, so a local
+re-login alone is not enough — push them across:
+
+```bash
+just run auth login                     # MitID; writes the local token file
+set -a; . secrets/supabase.env; set +a  # SUPABASE_URL + SUPABASE_SECRET_KEY
+just push-tokens                        # upserts the token row, prints the new expiry
+just verify-deployment                  # needs AULA_MCP_URL + AULA_MCP_SECRET
+```
+
+No redeploy is needed: the server reads the row on every invocation, and the
+`aula_whoami` line of `verify-deployment` proves it picked up the new tokens. If that line
+says `not logged in`, the row is still empty — `push-tokens` did not run against the right
+project (check `secrets/supabase.env`).
 
 ## Project structure
 
