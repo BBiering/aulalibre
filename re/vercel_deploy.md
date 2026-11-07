@@ -38,24 +38,27 @@ Aula refresh token expired and only an interactive MitID login can fix it.
 
 ## 2. Vercel project
 
-**Connect the fork, not the upstream repo.** Vercel must import `BBiering/aulalibre` and
-deploy branch `feat/aula-mcp`; importing `eisbaw/aulalibre` shows the pre-work tree
-(`aula-fuse` present, `aula-mcp`/`aula-vercel` absent). If the fork is missing from the
-import list, grant the Vercel GitHub app access to it (Account Settings → Integrations →
-GitHub → Configure → repository access).
+**Connect your fork, not the upstream repo.** Vercel must import `BBiering/aulalibre`;
+importing `eisbaw/aulalibre` shows the pre-work tree (`aula-fuse` present,
+`aula-mcp`/`aula-vercel` absent). If the fork is missing from the import list, grant the
+Vercel GitHub app access to it (Account Settings → Integrations → GitHub → Configure →
+repository access).
 
-**There is no branch picker at import.** Vercel always creates the project from `main`
-(then `master`, then the repo default), so either:
+**Branch: `main` is the trunk.** All work lives on `main` in the fork; there is no feature
+branch and no upstream PR. Locally `origin` is the fork and `upstream` is the read-only
+original, so a bare `git push` publishes to the right place.
 
-- *preferred*: set the fork's GitHub default branch to `feat/aula-mcp` first, import, then
-  restore the default after the PRs merge; or
-- import `main` with **Root Directory empty** (typing `aula/aula-vercel` is rejected while
-  `main` is the branch, because that path does not exist there), then Settings →
-  Environments → Production → Branch Tracking → `feat/aula-mcp`, set Root Directory, and
-  **Promote to Production** the newest `feat/aula-mcp` deployment. Changing the production
-  branch does not always redeploy its head commit.
+**There is no branch picker at import** — Vercel creates the project from `main` (then
+`master`, then the repo default). That is fine now that `main` holds everything. Two traps
+we hit before the branches were consolidated, recorded so they are recognisable:
 
-Switch the production branch back to `main` once the PRs merge.
+- Importing while a *feature* branch was the repo default made `aula/aula-vercel`
+  unavailable, and the wizard rejected that Root Directory.
+- If Production Branch Tracking does not point at the branch being pushed, Vercel builds
+  **previews** and the production domain silently keeps serving the previous build. Every
+  fix then needs a manual *Promote to Production*. Confirm tracking at Settings →
+  Environments → Production → Branch Tracking → `main`, and check that the newest
+  deployment in the Deployments tab is labelled **Production**, not Preview.
 
 Framework preset: **Other**. Root Directory: **`aula/aula-vercel`** — not `aula`.
 The adapter's `api/` directory and its package `Cargo.toml` (with the `[[bin]]`s) live
